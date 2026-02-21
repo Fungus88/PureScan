@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PureScan</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+          colors: {
+            surface: '#0a0a0a',
+            'surface-light': '#111111',
+            'surface-border': '#1a1a1a',
+          }
+        }
+      }
+    }
+  </script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+
+  <!-- QuaggaJS for barcode scanning (mobile camera) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" type="image/x-icon" href="heart.png">
+</head>
+
+<body class="bg-black text-white font-sans antialiased overflow-x-hidden">
+
+  <button id="menu-btn"
+    class="fixed top-6 right-6 z-[60] w-10 h-10 flex flex-col items-center justify-center gap-[5px] rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] transition-all duration-300 group"
+    aria-label="Open about panel">
+    <span class="menu-line w-4.5 h-px bg-white/40 group-hover:bg-white/70 transition-all duration-300 block"
+      style="width:18px"></span>
+    <span class="menu-line w-4.5 h-px bg-white/40 group-hover:bg-white/70 transition-all duration-300 block"
+      style="width:18px"></span>
+    <span class="menu-line w-4.5 h-px bg-white/40 group-hover:bg-white/70 transition-all duration-300 block"
+      style="width:18px"></span>
+  </button>
+
+  <div id="about-overlay" class="fixed inset-0 z-[55] bg-black/60 backdrop-blur-sm opacity-0 pointer-events-none"></div>
+
+  <aside id="about-panel"
+    class="fixed top-0 left-0 z-[58] h-full w-[25vw] min-w-[280px] max-w-[400px] bg-[#0a0a0a] border-r border-white/[0.06] flex flex-col -translate-x-full">
+    <div class="flex items-center justify-between px-6 pt-6 pb-4 border-b border-white/[0.04]">
+      <h2 class="text-base font-medium text-white/80 tracking-tight">About</h2>
+      <button id="about-close-btn"
+        class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/[0.06] transition-colors"
+        aria-label="Close about panel">
+        <svg class="w-4 h-4 text-white/40 hover:text-white/70 transition-colors" fill="none" stroke="currentColor"
+          viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+
+    <div class="flex-1 overflow-y-auto px-6 py-6">
+      <div class="space-y-6">
+        <div>
+          <h3 class="text-xs font-medium text-white/50 uppercase tracking-widest mb-3">???</h3>
+          <p class="text-sm text-white/40 font-light leading-relaxed">
+            Created with vibe coding.
+          </p>
+        </div>
+
+        <div>
+          <h3 class="text-xs font-medium text-white/50 uppercase tracking-widest mb-3">How it works</h3>
+          <p class="text-sm text-white/40 font-light leading-relaxed">
+            Simply enter a product barcode and PureScan fetches ingredient data from the <strong>Open Food Facts
+              database</strong>.
+          </p>
+        </div>
+
+        <div>
+          <h3 class="text-xs font-medium text-white/50 uppercase tracking-widest mb-3">Created by</h3>
+          <p class="text-sm text-white/40 font-light leading-relaxed">
+            Refugium <br>
+            Call it a safe heaven. It's purely on the front-end side, won't collect your data.
+          </p>
+        </div>
+
+        <div>
+          <h3 class="text-xs font-medium text-white/50 uppercase tracking-widest mb-3">Data source</h3>
+          <p class="text-sm text-white/40 font-light leading-relaxed">
+            Product data is sourced from <span class="text-white/60">Open Food Facts</span>, a free, open
+            database of food products from around the world.
+          </p>
+        </div>
+
+        <div>
+          <h3 class="text-xs font-medium text-white/50 uppercase tracking-widest mb-3">Disclaimer</h3>
+          <p class="text-sm text-white/40 font-light leading-relaxed">
+            Use it whenever you please to do so.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="px-6 py-4 border-t border-white/[0.04]">
+      <p class="text-xs text-white/20 font-light static-text">PureScan v1.0</p>
+    </div>
+  </aside>
+
+  <div id="ambient-glow" class="fixed inset-0 pointer-events-none opacity-0 transition-opacity duration-1000">
+    <div
+      class="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full bg-white/[0.015] blur-[120px]">
+    </div>
+  </div>
+
+  <div id="app" class="relative min-h-screen flex flex-col">
+
+    <div id="search-section" class="flex-1 flex flex-col items-center justify-center px-6 transition-none">
+
+      <div id="logo-group" class="mb-12 text-center">
+        <h1 class="text-5xl md:text-6xl font-light tracking-[-0.04em] text-white/90 mb-3 static-text">
+          Pure<span class="font-semibold">Scan</span>
+        </h1>
+        <p class="text-sm text-white/30 font-light tracking-wide static-text">Ingredient safety analysis</p>
+      </div>
+
+      <!-- Mobile camera scanner (phone only — hidden on desktop via CSS) -->
+      <div id="camera-section" class="w-full flex flex-col items-center mb-8">
+        <!-- Mode toggle -->
+        <div id="mode-toggle"
+          class="flex items-center gap-2 mb-6 p-1 rounded-xl bg-white/[0.04] border border-white/[0.06]">
+          <button id="camera-mode-btn"
+            class="mode-btn active px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300">
+            <span class="flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                  d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                <circle cx="12" cy="13" r="3" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" />
+              </svg>
+              Camera
+            </span>
+          </button>
+          <button id="manual-mode-btn"
+            class="mode-btn px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300">
+            <span class="flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              Manual
+            </span>
+          </button>
+        </div>
+
+        <!-- Camera viewfinder -->
+        <div id="camera-container"
+          class="relative w-full max-w-md aspect-[4/3] rounded-2xl overflow-hidden bg-surface-light border border-surface-border">
+          <div id="scanner-viewport" class="absolute inset-0"></div>
+
+          <!-- Scanning overlay -->
+          <div id="scanner-overlay" class="absolute inset-0 pointer-events-none">
+            <div class="absolute top-4 left-4 w-12 h-12 border-t-2 border-l-2 border-white/40 rounded-tl-lg"></div>
+            <div class="absolute top-4 right-4 w-12 h-12 border-t-2 border-r-2 border-white/40 rounded-tr-lg"></div>
+            <div class="absolute bottom-4 left-4 w-12 h-12 border-b-2 border-l-2 border-white/40 rounded-bl-lg"></div>
+            <div class="absolute bottom-4 right-4 w-12 h-12 border-b-2 border-r-2 border-white/40 rounded-br-lg"></div>
+            <div id="scan-line"
+              class="absolute left-4 right-4 h-0.5 bg-gradient-to-r from-transparent via-emerald-400 to-transparent opacity-80">
+            </div>
+          </div>
+
+          <!-- Camera status / start button -->
+          <div id="camera-status"
+            class="absolute inset-0 flex flex-col items-center justify-center bg-surface-light">
+            <svg class="w-12 h-12 text-white/20 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+              <circle cx="12" cy="13" r="3" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" />
+            </svg>
+            <p id="camera-status-text" class="text-sm text-white/30 font-light">Tap to start camera</p>
+            <button id="start-camera-btn"
+              class="mt-4 px-6 py-2.5 rounded-xl bg-white/[0.08] hover:bg-white/[0.12] text-white/60 hover:text-white/80 text-sm font-medium transition-all duration-300 border border-white/[0.08]">
+              Start Camera
+            </button>
+          </div>
+        </div>
+
+        <!-- Last scanned indicator -->
+        <div id="last-scanned"
+          class="hidden mt-6 px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+          <p class="text-xs text-emerald-400/80 font-light">
+            <span class="opacity-60">Detected:</span> <span id="last-barcode" class="font-medium"></span>
+          </p>
+        </div>
+      </div>
+
+      <form id="search-form" class="w-full max-w-xl relative">
+        <div id="search-wrapper" class="relative group">
+          <div
+            class="search-glow absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-white/10 via-white/5 to-white/10 opacity-0 group-focus-within:opacity-100 transition-opacity duration-500">
+          </div>
+          <div
+            class="relative flex items-center bg-surface-light border border-surface-border rounded-2xl overflow-hidden">
+            <div class="pl-5 pr-2 text-white/20">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            <input id="barcode-input" type="text" inputmode="numeric" pattern="[0-9]*"
+              placeholder="Enter barcode number" autocomplete="off"
+              class="flex-1 bg-transparent py-4 px-2 text-base text-white/90 placeholder:text-white/20 focus:outline-none font-light tracking-wide">
+            <button id="scan-btn" type="submit"
+              class="mr-2 px-5 py-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] text-white/50 hover:text-white/80 text-sm font-medium transition-all duration-300 border border-white/[0.06]">
+              Scan
+            </button>
+          </div>
+        </div>
+        <div id="examples" class="mt-4 flex items-center justify-center gap-3 text-xs text-white/20">
+          <span>Try:</span>
+          <button type="button" class="example-btn hover:text-white/50 transition-colors"
+            data-barcode="3017620422003">Nutella</button>
+          <span class="text-white/10">|</span>
+          <button type="button" class="example-btn hover:text-white/50 transition-colors"
+            data-barcode="5449000000996">Coca-Cola</button>
+          <span class="text-white/10">|</span>
+          <button type="button" class="example-btn hover:text-white/50 transition-colors"
+            data-barcode="8992760223015">Oreo</button>
+        </div>
+      </form>
+    </div>
+
+    <div id="results-section" class="hidden px-6 pb-16">
+
+      <div id="product-header" class="max-w-4xl mx-auto mb-10 opacity-0">
+        <div class="flex items-start gap-6">
+          <div id="product-image-wrapper"
+            class="hidden shrink-0 w-20 h-20 rounded-xl overflow-hidden bg-surface-light border border-surface-border">
+            <img id="product-image" class="w-full h-full object-cover" alt="Product">
+          </div>
+          <div class="min-w-0">
+            <h2 id="product-name" class="text-2xl md:text-3xl font-light tracking-tight text-white/90 truncate"></h2>
+            <p id="product-brand" class="text-sm text-white/30 mt-1 font-light"></p>
+            <div id="overall-badge-mobile" class="mt-2 px-4 py-1.5 rounded-full text-xs font-medium border w-fit hidden"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="safety-summary" class="max-w-4xl mx-auto mb-10 opacity-0">
+        <div class="flex items-center gap-6 p-5 rounded-2xl bg-surface-light border border-surface-border">
+          <div class="flex items-center gap-3 flex-1">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-500/80"></span>
+              <span class="text-sm text-white/40 font-light">Safe</span>
+              <span id="count-green" class="text-sm text-white/70 font-medium ml-1">0</span>
+            </div>
+            <div class="w-px h-4 bg-white/10"></div>
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-amber-400/80"></span>
+              <span class="text-sm text-white/40 font-light">Caution</span>
+              <span id="count-yellow" class="text-sm text-white/70 font-medium ml-1">0</span>
+            </div>
+            <div class="w-px h-4 bg-white/10"></div>
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-red-500/80"></span>
+              <span class="text-sm text-white/40 font-light">Harmful</span>
+              <span id="count-red" class="text-sm text-white/70 font-medium ml-1">0</span>
+            </div>
+          </div>
+          <div id="overall-badge" class="px-4 py-1.5 rounded-full text-xs font-medium border"></div>
+        </div>
+      </div>
+
+      <div id="ingredients-grid" class="max-w-4xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+
+      <div id="new-scan-wrapper" class="max-w-4xl mx-auto mt-12 text-center opacity-0">
+        <button id="new-scan-btn"
+          class="px-6 py-3 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-white/40 hover:text-white/70 text-sm font-light tracking-wide transition-all duration-300 border border-white/[0.06]">
+          Scan another product
+        </button>
+      </div>
+    </div>
+
+    <div id="loading-overlay"
+      class="fixed inset-0 flex items-center justify-center bg-black/80 backdrop-blur-sm z-50 hidden">
+      <div class="flex flex-col items-center gap-6">
+        <div class="loading-ring">
+          <div></div>
+          <div></div>
+          <div></div>
+        </div>
+        <p class="text-sm text-white/30 font-light tracking-widest uppercase">Analyzing</p>
+      </div>
+    </div>
+
+    <div id="error-toast" class="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 opacity-0 pointer-events-none">
+      <div class="px-6 py-3.5 rounded-2xl bg-surface-light border border-red-500/20 backdrop-blur-xl">
+        <p id="error-message" class="text-sm text-white/60 font-light"></p>
+      </div>
+    </div>
+
+    <div id="success-toast" class="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 opacity-0 pointer-events-none">
+      <div class="px-6 py-3.5 rounded-2xl bg-surface-light border border-emerald-500/20 backdrop-blur-xl">
+        <p id="success-message" class="text-sm text-emerald-400/80 font-light"></p>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="script.js"></script>
+</body>
+
+</html>
