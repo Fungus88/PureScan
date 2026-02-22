@@ -68,7 +68,6 @@ const SAFETY_DATA = {
       'carmoisine': 'Azo dye linked to allergic reactions',
       'e122': 'Carmoisine — synthetic red dye',
 
-      // Preservatives
       'sodium nitrite': 'Can form carcinogenic nitrosamines in the body',
       'e250': 'Sodium nitrite — linked to cancer risk',
       'sodium nitrate': 'Can convert to harmful nitrites',
@@ -114,7 +113,6 @@ const SAFETY_DATA = {
       'disodium inosinate': 'Often used with MSG, same concerns',
       'e631': 'Disodium inosinate — MSG-related additive',
 
-      // Other
       'propyl gallate': 'Potential endocrine disruptor',
       'e310': 'Propyl gallate — possible endocrine effects',
       'high fructose corn syrup': 'Linked to obesity, insulin resistance, fatty liver',
@@ -160,7 +158,6 @@ const SAFETY_DATA = {
       'steviol glycosides': 'Processed natural sweetener',
       'e960': 'Steviol glycosides — processed sweetener',
 
-      // Preservatives
       'sorbic acid': 'Generally safe; minor sensitivity in rare cases',
       'e200': 'Sorbic acid — rare sensitivity',
       'sulphur dioxide': 'Can trigger asthma and allergic reactions',
@@ -202,7 +199,6 @@ const SAFETY_DATA = {
       'annatto': 'Natural color; rare allergic reactions',
       'e160b': 'Annatto — rare allergen',
 
-      // Other
       'palm oil': 'Environmental concern; high in saturated fat',
       'maltodextrin': 'High glycemic index; spikes blood sugar',
       'dextrose': 'Simple sugar; spikes blood sugar',
@@ -392,7 +388,11 @@ const aboutPanel = document.getElementById('about-panel');
 const aboutOverlay = document.getElementById('about-overlay');
 const aboutCloseBtn = document.getElementById('about-close-btn');
 
-// Camera elements (mobile only)
+const infoBtn = document.getElementById('info-btn');
+const infoPanel = document.getElementById('info-panel');
+const infoOverlay = document.getElementById('info-overlay');
+const infoCloseBtn = document.getElementById('info-close-btn');
+
 const cameraSection = document.getElementById('camera-section');
 const cameraContainer = document.getElementById('camera-container');
 const scannerViewport = document.getElementById('scanner-viewport');
@@ -408,6 +408,7 @@ const successMessage = document.getElementById('success-message');
 
 let isDocked = false;
 let aboutOpen = false;
+let infoOpen = false;
 let cameraActive = false;
 let lastDetectedBarcode = null;
 let detectionCooldown = false;
@@ -441,11 +442,7 @@ function classifyIngredient(name) {
 async function fetchProduct(barcode) {
   const url = `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(barcode)}`;
 
-  const response = await fetch(url, {
-    headers: {
-      'User-Agent': 'PureScan/1.0 (https://purescan.app; contact@purescan.app)'
-    }
-  });
+  const response = await fetch(url);
 
   if (!response.ok) {
     throw new Error('Network error. Please try again.');
@@ -482,6 +479,206 @@ function parseIngredients(product) {
     .split(/,|;/)
     .map(s => s.replace(/\(.*?\)/g, '').trim())
     .filter(s => s.length > 0 && s.length < 80);
+}
+
+
+function extractProductData(product) {
+  const data = {};
+
+  data.quantity = product.quantity || null;
+
+  const nutriGrade = (product.nutriscore_grade || product.nutrition_grades || '').toLowerCase();
+  data.nutriScore = ['a', 'b', 'c', 'd', 'e'].includes(nutriGrade) ? nutriGrade.toUpperCase() : null;
+
+  const nova = parseInt(product.nova_group, 10);
+  data.novaGroup = (nova >= 1 && nova <= 4) ? nova : null;
+
+  const ecoGrade = (product.ecoscore_grade || '').toLowerCase();
+  data.ecoScore = ['a', 'b', 'c', 'd', 'e'].includes(ecoGrade) ? ecoGrade.toUpperCase() : null;
+
+  const levels = product.nutrient_levels || {};
+  data.nutrientLevels = {};
+  const nutrientMap = { fat: 'Fat', 'saturated-fat': 'Saturated Fat', sugars: 'Sugars', salt: 'Salt' };
+  for (const [key, label] of Object.entries(nutrientMap)) {
+    if (levels[key]) {
+      data.nutrientLevels[label] = levels[key];
+    }
+  }
+  if (Object.keys(data.nutrientLevels).length === 0) data.nutrientLevels = null;
+
+  const n = product.nutriments || {};
+  data.nutrients = [];
+  const nutrientDefs = [
+    ['Energy', 'energy-kcal_100g', 'kcal'],
+    ['Fat', 'fat_100g', 'g'],
+    ['Saturated fat', 'saturated-fat_100g', 'g'],
+    ['Carbohydrates', 'carbohydrates_100g', 'g'],
+    ['Sugars', 'sugars_100g', 'g'],
+    ['Fiber', 'fiber_100g', 'g'],
+    ['Proteins', 'proteins_100g', 'g'],
+    ['Salt', 'salt_100g', 'g'],
+  ];
+  for (const [label, key, unit] of nutrientDefs) {
+    const val = n[key];
+    if (val !== undefined && val !== null && val !== '') {
+      data.nutrients.push({ label, value: parseFloat(val), unit });
+    }
+  }
+  if (data.nutrients.length === 0) data.nutrients = null;
+
+  data.servingSize = product.serving_size || null;
+
+  const allergenTags = product.allergens_tags || [];
+  data.allergens = allergenTags
+    .map(t => t.replace(/^en:/, '').replace(/-/g, ' '))
+    .map(t => t.charAt(0).toUpperCase() + t.slice(1))
+    .filter(t => t.length > 0);
+  if (data.allergens.length === 0) data.allergens = null;
+
+  const labelTags = product.labels_tags || [];
+  data.labels = labelTags
+    .map(t => t.replace(/^en:/, '').replace(/-/g, ' '))
+    .map(t => t.charAt(0).toUpperCase() + t.slice(1))
+    .filter(t => t.length > 0);
+  if (data.labels.length === 0) data.labels = null;
+
+  return data;
+}
+
+
+function renderScoreBadges(data) {
+  const section = document.getElementById('score-badges');
+  const nutriTile = document.getElementById('badge-nutriscore');
+  const novaTile = document.getElementById('badge-nova');
+  const ecoTile = document.getElementById('badge-ecoscore');
+
+  let anyVisible = false;
+
+  if (data.nutriScore) {
+    nutriTile.className = `flex-1 score-tile rounded-2xl p-4 bg-surface-light border border-surface-border text-center score-${data.nutriScore.toLowerCase()}`;
+    nutriTile.querySelector('.score-grade').textContent = data.nutriScore;
+    anyVisible = true;
+  } else {
+    nutriTile.classList.add('hidden');
+  }
+
+  if (data.novaGroup) {
+    novaTile.className = `flex-1 score-tile rounded-2xl p-4 bg-surface-light border border-surface-border text-center nova-${data.novaGroup}`;
+    novaTile.querySelector('.score-grade').textContent = data.novaGroup;
+    anyVisible = true;
+  } else {
+    novaTile.classList.add('hidden');
+  }
+
+  if (data.ecoScore) {
+    ecoTile.className = `flex-1 score-tile rounded-2xl p-4 bg-surface-light border border-surface-border text-center score-${data.ecoScore.toLowerCase()}`;
+    ecoTile.querySelector('.score-grade').textContent = data.ecoScore;
+    anyVisible = true;
+  } else {
+    ecoTile.classList.add('hidden');
+  }
+
+  if (anyVisible) {
+    section.classList.remove('hidden');
+  }
+}
+
+
+function renderNutrientLevels(data) {
+  if (!data.nutrientLevels) return;
+
+  const section = document.getElementById('nutrient-levels');
+  const container = section.querySelector('.flex');
+  container.innerHTML = '';
+
+  for (const [name, level] of Object.entries(data.nutrientLevels)) {
+    const item = document.createElement('div');
+    item.className = 'nutrient-item';
+
+    const dot = document.createElement('span');
+    dot.className = `nutrient-dot level-${level}`;
+
+    const label = document.createElement('span');
+    label.className = 'text-xs text-white/50 font-light';
+    label.textContent = name;
+
+    const levelText = document.createElement('span');
+    levelText.className = 'text-xs font-light';
+    const levelColors = { low: 'text-green-400/70', moderate: 'text-yellow-400/70', high: 'text-red-400/70' };
+    levelText.className += ` ${levelColors[level] || 'text-white/30'}`;
+    levelText.textContent = level;
+
+    item.appendChild(dot);
+    item.appendChild(label);
+    item.appendChild(levelText);
+    container.appendChild(item);
+  }
+
+  section.classList.remove('hidden');
+}
+
+
+function renderNutritionTable(data) {
+  if (!data.nutrients) return;
+
+  const section = document.getElementById('nutrition-facts');
+  const table = document.getElementById('nutrition-table');
+  const servingEl = document.getElementById('serving-size');
+
+  if (data.servingSize) {
+    servingEl.textContent = `Serving size: ${sanitizeHTML(data.servingSize)}`;
+    servingEl.classList.remove('hidden');
+  }
+
+  table.innerHTML = '';
+  for (const item of data.nutrients) {
+    const tr = document.createElement('tr');
+    const tdName = document.createElement('td');
+    tdName.textContent = item.label;
+    const tdVal = document.createElement('td');
+    const displayVal = Number.isInteger(item.value) ? item.value : item.value.toFixed(1);
+    tdVal.textContent = `${displayVal} ${item.unit}`;
+    tr.appendChild(tdName);
+    tr.appendChild(tdVal);
+    table.appendChild(tr);
+  }
+
+  section.classList.remove('hidden');
+}
+
+
+function renderAllergensLabels(data) {
+  if (!data.allergens && !data.labels) return;
+
+  const section = document.getElementById('allergens-labels');
+  const allergensGroup = document.getElementById('allergens-group');
+  const labelsGroup = document.getElementById('labels-group');
+  const allergensTags = document.getElementById('allergens-tags');
+  const labelsTags = document.getElementById('labels-tags');
+
+  if (data.allergens) {
+    allergensTags.innerHTML = '';
+    for (const name of data.allergens) {
+      const tag = document.createElement('span');
+      tag.className = 'allergen-tag';
+      tag.textContent = sanitizeHTML(name);
+      allergensTags.appendChild(tag);
+    }
+    allergensGroup.classList.remove('hidden');
+  }
+
+  if (data.labels) {
+    labelsTags.innerHTML = '';
+    for (const name of data.labels) {
+      const tag = document.createElement('span');
+      tag.className = 'label-tag';
+      tag.textContent = sanitizeHTML(name);
+      labelsTags.appendChild(tag);
+    }
+    labelsGroup.classList.remove('hidden');
+  }
+
+  section.classList.remove('hidden');
 }
 
 
@@ -541,6 +738,19 @@ function renderResults(product) {
     productImgWrap.classList.add('hidden');
   }
 
+  const productData = extractProductData(product);
+
+  const quantityEl = document.getElementById('product-quantity');
+  if (productData.quantity) {
+    quantityEl.textContent = sanitizeHTML(productData.quantity);
+    quantityEl.classList.remove('hidden');
+  } else {
+    quantityEl.classList.add('hidden');
+  }
+
+  renderScoreBadges(productData);
+  renderNutrientLevels(productData);
+
   ingredientsGrid.innerHTML = '';
 
   classified.forEach(item => {
@@ -569,6 +779,9 @@ function renderResults(product) {
     ingredientsGrid.appendChild(card);
   });
 
+  renderNutritionTable(productData);
+  renderAllergensLabels(productData);
+
   resultsSection.classList.remove('hidden');
 
   animateResultsIn();
@@ -579,7 +792,6 @@ function animateSearchDock() {
   if (isDocked) return Promise.resolve();
   isDocked = true;
 
-  // Stop camera and show search form for docked state
   stopScanner();
   searchForm.classList.remove('mobile-camera-active');
 
@@ -646,11 +858,29 @@ function animateResultsIn() {
     0.1
   );
 
+  const scoreBadges = document.getElementById('score-badges');
+  if (!scoreBadges.classList.contains('hidden')) {
+    tl.fromTo(scoreBadges,
+      { opacity: 0, y: 20 },
+      { opacity: 1, y: 0, duration: 0.6, ease: 'power3.out' },
+      0.2
+    );
+  }
+
   tl.fromTo(safetySummary,
     { opacity: 0, y: 20 },
     { opacity: 1, y: 0, duration: 0.6, ease: 'power3.out' },
-    0.25
+    0.3
   );
+
+  const nutrientLevels = document.getElementById('nutrient-levels');
+  if (!nutrientLevels.classList.contains('hidden')) {
+    tl.fromTo(nutrientLevels,
+      { opacity: 0, y: 20 },
+      { opacity: 1, y: 0, duration: 0.6, ease: 'power3.out' },
+      0.4
+    );
+  }
 
   const cards = ingredientsGrid.querySelectorAll('.ingredient-card');
   tl.fromTo(cards,
@@ -662,8 +892,26 @@ function animateResultsIn() {
       stagger: 0.06,
       ease: 'power3.out',
     },
-    0.4
+    0.5
   );
+
+  const nutritionFacts = document.getElementById('nutrition-facts');
+  if (!nutritionFacts.classList.contains('hidden')) {
+    tl.fromTo(nutritionFacts,
+      { opacity: 0, y: 20 },
+      { opacity: 1, y: 0, duration: 0.5, ease: 'power3.out' },
+      '-=0.2'
+    );
+  }
+
+  const allergensLabels = document.getElementById('allergens-labels');
+  if (!allergensLabels.classList.contains('hidden')) {
+    tl.fromTo(allergensLabels,
+      { opacity: 0, y: 20 },
+      { opacity: 1, y: 0, duration: 0.5, ease: 'power3.out' },
+      '-=0.2'
+    );
+  }
 
   tl.fromTo(newScanWrapper,
     { opacity: 0 },
@@ -685,6 +933,34 @@ function animateResetToCenter() {
     resultsSection.style.opacity = '';
     ingredientsGrid.innerHTML = '';
     productImgWrap.classList.add('hidden');
+
+    const scoreBadges = document.getElementById('score-badges');
+    scoreBadges.classList.add('hidden');
+    scoreBadges.style.opacity = '';
+    document.getElementById('badge-nutriscore').classList.add('hidden');
+    document.getElementById('badge-nova').classList.add('hidden');
+    document.getElementById('badge-ecoscore').classList.add('hidden');
+
+    const nutrientLevels = document.getElementById('nutrient-levels');
+    nutrientLevels.classList.add('hidden');
+    nutrientLevels.style.opacity = '';
+    nutrientLevels.querySelector('.flex').innerHTML = '';
+
+    document.getElementById('product-quantity').classList.add('hidden');
+
+    const nutritionFacts = document.getElementById('nutrition-facts');
+    nutritionFacts.classList.add('hidden');
+    nutritionFacts.style.opacity = '';
+    document.getElementById('nutrition-table').innerHTML = '';
+    document.getElementById('serving-size').classList.add('hidden');
+
+    const allergensLabels = document.getElementById('allergens-labels');
+    allergensLabels.classList.add('hidden');
+    allergensLabels.style.opacity = '';
+    document.getElementById('allergens-group').classList.add('hidden');
+    document.getElementById('labels-group').classList.add('hidden');
+    document.getElementById('allergens-tags').innerHTML = '';
+    document.getElementById('labels-tags').innerHTML = '';
   });
 
   tl.to(searchSection, {
@@ -733,7 +1009,6 @@ function animateResetToCenter() {
   tl.add(() => {
     barcodeInput.value = '';
     lastDetectedBarcode = null;
-    // Restore camera mode on mobile, otherwise focus search input
     if (window.innerWidth <= 640 && cameraSection) {
       switchToCamera();
     } else {
@@ -798,8 +1073,6 @@ function showSuccess(msg) {
   });
 }
 
-
-// ── Camera Scanner (mobile only) ─────────────────────────────────────
 
 function initScanner() {
   if (typeof Quagga === 'undefined') {
@@ -872,18 +1145,14 @@ function onBarcodeDetected(result) {
   lastDetectedBarcode = code;
   detectionCooldown = true;
 
-  // Visual feedback
   cameraContainer.classList.add('detected');
   setTimeout(() => cameraContainer.classList.remove('detected'), 500);
 
-  // Show detected barcode
   lastBarcodeEl.textContent = code;
   lastScannedEl.classList.remove('hidden');
 
-  // Process the barcode
   processCameraBarcode(code);
 
-  // Reset cooldown after 2 seconds
   setTimeout(() => {
     detectionCooldown = false;
   }, 2000);
@@ -904,8 +1173,6 @@ async function processCameraBarcode(barcode) {
   }
 }
 
-
-// ── Mode Toggle (mobile only) ────────────────────────────────────────
 
 function switchToCamera() {
   cameraModeBtn.classList.add('active');
@@ -976,6 +1243,7 @@ function closeAboutPanel() {
 }
 
 function toggleAboutPanel() {
+  if (infoOpen) return;
   aboutOpen ? closeAboutPanel() : openAboutPanel();
 }
 
@@ -983,22 +1251,75 @@ menuBtn.addEventListener('click', toggleAboutPanel);
 aboutCloseBtn.addEventListener('click', closeAboutPanel);
 aboutOverlay.addEventListener('click', closeAboutPanel);
 
+
+function openInfoPanel() {
+  if (infoOpen) return;
+  infoOpen = true;
+
+  infoOverlay.classList.remove('pointer-events-none');
+
+  const tl = gsap.timeline();
+
+  tl.to(infoOverlay, {
+    opacity: 1,
+    duration: 0.4,
+    ease: 'power2.out',
+  }, 0);
+
+  tl.to(infoPanel, {
+    x: 0,
+    duration: 0.5,
+    ease: 'power3.out',
+  }, 0.05);
+
+  tl.fromTo('#info-panel .space-y-6 > div',
+    { opacity: 0, x: -15 },
+    { opacity: 1, x: 0, duration: 0.4, stagger: 0.06, ease: 'power2.out' },
+    0.2
+  );
+}
+
+function closeInfoPanel() {
+  if (!infoOpen) return;
+  infoOpen = false;
+
+  const tl = gsap.timeline();
+
+  tl.to(infoPanel, {
+    x: '-100%',
+    duration: 0.4,
+    ease: 'power3.in',
+  }, 0);
+
+  tl.to(infoOverlay, {
+    opacity: 0,
+    duration: 0.35,
+    ease: 'power2.in',
+    onComplete: () => infoOverlay.classList.add('pointer-events-none'),
+  }, 0.1);
+}
+
+function toggleInfoPanel() {
+  if (aboutOpen) return;
+  infoOpen ? closeInfoPanel() : openInfoPanel();
+}
+
+infoBtn.addEventListener('click', toggleInfoPanel);
+infoCloseBtn.addEventListener('click', closeInfoPanel);
+infoOverlay.addEventListener('click', closeInfoPanel);
+
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && aboutOpen) closeAboutPanel();
+  if (e.key === 'Escape' && infoOpen) closeInfoPanel();
 });
 
 
-// Camera event listeners
 startCameraBtn.addEventListener('click', initScanner);
 cameraModeBtn.addEventListener('click', switchToCamera);
 manualModeBtn.addEventListener('click', switchToManual);
 
 
-searchForm.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const barcode = barcodeInput.value.trim();
-  if (!barcode) return;
-
+async function runSearch(barcode) {
   if (!validateBarcode(barcode)) {
     showError('Please enter a valid barcode (8-13 digits).');
     return;
@@ -1012,15 +1333,24 @@ searchForm.addEventListener('submit', async (e) => {
     hideLoading();
     renderResults(product);
   } catch (err) {
+    console.error('Fetch error:', err);
     hideLoading();
     showError(err.message);
+    animateResetToCenter();
   }
+}
+
+searchForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const barcode = barcodeInput.value.trim();
+  if (!barcode) return;
+  runSearch(barcode);
 });
 
 document.querySelectorAll('.example-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     barcodeInput.value = btn.dataset.barcode;
-    searchForm.dispatchEvent(new Event('submit'));
+    runSearch(btn.dataset.barcode);
   });
 });
 
@@ -1042,7 +1372,6 @@ window.addEventListener('DOMContentLoaded', () => {
     { opacity: 1, duration: 0.6, delay: 0.4, ease: 'power2.out' }
   );
 
-  // On mobile, default to camera mode (hide manual search form)
   if (window.innerWidth <= 640 && cameraSection) {
     searchForm.classList.add('mobile-camera-active');
     gsap.fromTo('#camera-container',
