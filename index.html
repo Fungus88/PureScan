@@ -28,7 +28,7 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
 
-  <!-- QuaggaJS for barcode scanning (mobile camera) -->
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
 
   <link rel="stylesheet" href="style.css">
@@ -48,7 +48,14 @@
       style="width:18px"></span>
   </button>
 
+  <button id="info-btn"
+    class="fixed top-[5.5rem] right-6 z-[60] w-10 h-10 flex items-center justify-center rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] transition-all duration-300"
+    aria-label="Open glossary">
+    <span class="info-i">i</span>
+  </button>
+
   <div id="about-overlay" class="fixed inset-0 z-[55] bg-black/60 backdrop-blur-sm opacity-0 pointer-events-none"></div>
+  <div id="info-overlay" class="fixed inset-0 z-[55] bg-black/60 opacity-0 pointer-events-none"></div>
 
   <aside id="about-panel"
     class="fixed top-0 left-0 z-[58] h-full w-[25vw] min-w-[280px] max-w-[400px] bg-[#0a0a0a] border-r border-white/[0.06] flex flex-col -translate-x-full">
@@ -111,6 +118,60 @@
     </div>
   </aside>
 
+  <aside id="info-panel"
+    class="fixed top-0 left-0 z-[58] h-full w-[25vw] min-w-[280px] max-w-[400px] bg-[#0a0a0a] border-r border-white/[0.06] flex flex-col -translate-x-full">
+    <div class="flex items-center justify-between px-6 pt-6 pb-4 border-b border-white/[0.04]">
+      <h2 class="text-base font-medium text-white/80 tracking-tight">Glossary</h2>
+      <button id="info-close-btn"
+        class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/[0.06] transition-colors"
+        aria-label="Close glossary panel">
+        <svg class="w-4 h-4 text-white/40 hover:text-white/70 transition-colors" fill="none" stroke="currentColor"
+          viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+
+    <div class="flex-1 overflow-y-auto px-6 py-6">
+      <div class="space-y-6">
+        <div>
+          <h3 class="text-xs font-medium text-white/50 uppercase tracking-widest mb-3">Nutri-Score</h3>
+          <p class="text-sm text-white/40 font-light leading-relaxed">
+            A–E rating of overall nutritional quality based on calories, sugar, saturated fat, sodium, fiber, and protein per 100g. A is best, E is worst.
+          </p>
+        </div>
+
+        <div>
+          <h3 class="text-xs font-medium text-white/50 uppercase tracking-widest mb-3">NOVA Group</h3>
+          <p class="text-sm text-white/40 font-light leading-relaxed">
+            Food processing classification: 1 = unprocessed, 2 = culinary ingredients, 3 = processed foods, 4 = ultra-processed. Lower is better.
+          </p>
+        </div>
+
+        <div>
+          <h3 class="text-xs font-medium text-white/50 uppercase tracking-widest mb-3">Eco-Score</h3>
+          <p class="text-sm text-white/40 font-light leading-relaxed">
+            A–E rating of environmental impact considering carbon footprint, packaging, transport, and land use. A is lowest impact, E is highest.
+          </p>
+        </div>
+
+        <div>
+          <h3 class="text-xs font-medium text-white/50 uppercase tracking-widest mb-3">Nutrient Levels</h3>
+          <p class="text-sm text-white/40 font-light leading-relaxed">
+            Low / Moderate / High ratings for fat, saturated fat, sugars, and salt per 100g, based on EU reference thresholds.
+          </p>
+        </div>
+
+        <div>
+          <h3 class="text-xs font-medium text-white/50 uppercase tracking-widest mb-3">NOVA 4 — Ultra-Processed</h3>
+          <p class="text-sm text-white/40 font-light leading-relaxed">
+            Foods with five or more ingredients, additives, and industrial substances not normally used in home cooking (e.g. emulsifiers, flavors, colorants).
+          </p>
+        </div>
+      </div>
+    </div>
+  </aside>
+
   <div id="ambient-glow" class="fixed inset-0 pointer-events-none opacity-0 transition-opacity duration-1000">
     <div
       class="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full bg-white/[0.015] blur-[120px]">
@@ -128,9 +189,9 @@
         <p class="text-sm text-white/30 font-light tracking-wide static-text">Ingredient safety analysis</p>
       </div>
 
-      <!-- Mobile camera scanner (phone only — hidden on desktop via CSS) -->
+
       <div id="camera-section" class="w-full flex flex-col items-center mb-8">
-        <!-- Mode toggle -->
+
         <div id="mode-toggle"
           class="flex items-center gap-2 mb-6 p-1 rounded-xl bg-white/[0.04] border border-white/[0.06]">
           <button id="camera-mode-btn"
@@ -156,12 +217,12 @@
           </button>
         </div>
 
-        <!-- Camera viewfinder -->
+
         <div id="camera-container"
           class="relative w-full max-w-md aspect-[4/3] rounded-2xl overflow-hidden bg-surface-light border border-surface-border">
           <div id="scanner-viewport" class="absolute inset-0"></div>
 
-          <!-- Scanning overlay -->
+
           <div id="scanner-overlay" class="absolute inset-0 pointer-events-none">
             <div class="absolute top-4 left-4 w-12 h-12 border-t-2 border-l-2 border-white/40 rounded-tl-lg"></div>
             <div class="absolute top-4 right-4 w-12 h-12 border-t-2 border-r-2 border-white/40 rounded-tr-lg"></div>
@@ -172,7 +233,7 @@
             </div>
           </div>
 
-          <!-- Camera status / start button -->
+
           <div id="camera-status"
             class="absolute inset-0 flex flex-col items-center justify-center bg-surface-light">
             <svg class="w-12 h-12 text-white/20 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -188,7 +249,7 @@
           </div>
         </div>
 
-        <!-- Last scanned indicator -->
+
         <div id="last-scanned"
           class="hidden mt-6 px-4 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
           <p class="text-xs text-emerald-400/80 font-light">
@@ -244,7 +305,25 @@
           <div class="min-w-0">
             <h2 id="product-name" class="text-2xl md:text-3xl font-light tracking-tight text-white/90 truncate"></h2>
             <p id="product-brand" class="text-sm text-white/30 mt-1 font-light"></p>
+            <span id="product-quantity" class="hidden text-xs text-white/25 font-light mt-1 block"></span>
             <div id="overall-badge-mobile" class="mt-2 px-4 py-1.5 rounded-full text-xs font-medium border w-fit hidden"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="score-badges" class="hidden max-w-4xl mx-auto mb-10 opacity-0">
+        <div class="flex flex-col sm:flex-row gap-3">
+          <div id="badge-nutriscore" class="hidden flex-1 score-tile rounded-2xl p-4 bg-surface-light border border-surface-border text-center">
+            <p class="text-xs text-white/40 font-light uppercase tracking-wider mb-2">Nutri-Score</p>
+            <span class="score-grade text-3xl font-semibold"></span>
+          </div>
+          <div id="badge-nova" class="hidden flex-1 score-tile rounded-2xl p-4 bg-surface-light border border-surface-border text-center">
+            <p class="text-xs text-white/40 font-light uppercase tracking-wider mb-2">NOVA Group</p>
+            <span class="score-grade text-3xl font-semibold"></span>
+          </div>
+          <div id="badge-ecoscore" class="hidden flex-1 score-tile rounded-2xl p-4 bg-surface-light border border-surface-border text-center">
+            <p class="text-xs text-white/40 font-light uppercase tracking-wider mb-2">Eco-Score</p>
+            <span class="score-grade text-3xl font-semibold"></span>
           </div>
         </div>
       </div>
@@ -274,7 +353,36 @@
         </div>
       </div>
 
+      <div id="nutrient-levels" class="hidden max-w-4xl mx-auto mb-10 opacity-0">
+        <div class="flex flex-wrap gap-4 p-5 rounded-2xl bg-surface-light border border-surface-border">
+        </div>
+      </div>
+
       <div id="ingredients-grid" class="max-w-4xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+
+      <div id="nutrition-facts" class="hidden max-w-4xl mx-auto mt-10 opacity-0">
+        <div class="rounded-2xl bg-surface-light border border-surface-border overflow-hidden">
+          <div class="px-5 py-4 border-b border-white/[0.04]">
+            <h3 class="text-sm font-medium text-white/60 tracking-tight">Nutrition Facts</h3>
+            <p id="serving-size" class="hidden text-xs text-white/25 font-light mt-1"></p>
+          </div>
+          <table id="nutrition-table" class="w-full">
+          </table>
+        </div>
+      </div>
+
+      <div id="allergens-labels" class="hidden max-w-4xl mx-auto mt-10 opacity-0">
+        <div class="rounded-2xl bg-surface-light border border-surface-border p-5">
+          <div id="allergens-group" class="hidden mb-4">
+            <h3 class="text-xs font-medium text-white/40 uppercase tracking-widest mb-3">Allergens</h3>
+            <div id="allergens-tags" class="flex flex-wrap gap-2"></div>
+          </div>
+          <div id="labels-group" class="hidden">
+            <h3 class="text-xs font-medium text-white/40 uppercase tracking-widest mb-3">Labels</h3>
+            <div id="labels-tags" class="flex flex-wrap gap-2"></div>
+          </div>
+        </div>
+      </div>
 
       <div id="new-scan-wrapper" class="max-w-4xl mx-auto mt-12 text-center opacity-0">
         <button id="new-scan-btn"
