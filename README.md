@@ -1,5 +1,7 @@
 # PureScan
 
+**Live site: [fungus88.github.io/PureScan/](https://fungus88.github.io/PureScan/)**
+
 A minimalist, front-end-only food ingredient safety analyzer. Enter a product barcode and PureScan fetches data from the Open Food Facts database, classifies each ingredient by safety level, and presents nutrition scores and facts in a clean dark UI.
 
 No backend. No accounts. No data collection.
@@ -94,11 +96,13 @@ No build step. No bundler. No dependencies to install. Open `index.html` in a br
 
 ## Usage
 
+The app is hosted at **[fungus88.github.io/PureScan/](https://fungus88.github.io/PureScan/)** — no installation needed.
+
 ### Desktop
-Open `index.html` in any modern browser. Type a barcode into the search field and press **Scan** or hit Enter.
+Visit the link above or open `index.html` in any modern browser. Type a barcode into the search field and press **Scan** or hit Enter.
 
 ### Mobile
-Open the page on a mobile device. The camera section appears automatically. Tap **Start Camera**, point at a barcode, and the app detects and looks it up automatically. Switch to **Manual** mode to type instead.
+Open the site on a mobile device. The camera section appears automatically. Tap **Start Camera**, point at a barcode, and the app detects and looks it up automatically. Switch to **Manual** mode to type instead.
 
 ### Example barcodes to try
 
@@ -129,7 +133,7 @@ Product data is provided by [Open Food Facts](https://world.openfoodfacts.org/),
 
 - **Ingredient matching is imprecise.** The classifier uses simple substring matching, which can produce false positives for ingredients with overlapping names (e.g., "salt" matching "potassium salt").
 - **Safety data is static.** The built-in ingredient database reflects current scientific understanding at time of writing and does not update automatically.
-- **Camera scanning requires HTTPS.** Most browsers block `getUserMedia` on non-secure origins. Host the files over HTTPS or use `localhost` for camera features to work.
+- **Camera scanning requires HTTPS.** Most browsers block `getUserMedia` on non-secure origins. The hosted site at `fungus88.github.io` runs over HTTPS so camera works there; if running locally, use `localhost`.
 - **Open Food Facts coverage varies.** Some products, particularly regional or private-label items, may have incomplete or missing data.
 - **Not medical advice.** Classifications are informational only and should not substitute professional dietary guidance.
 
